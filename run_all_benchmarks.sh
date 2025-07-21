@@ -222,3 +222,7 @@ done
 echo
 echo "Comparison report saved to: ${SUMMARY_FILE}"
 echo "Benchmark suite finished."
+
+# Add after the summary is generated
+echo "Generating performance chart..."
+./plot_results.sh "${SUMMARY_FILE}"
