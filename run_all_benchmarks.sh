@@ -15,8 +15,8 @@ function restore_settings() {
 
   # Restore CPU governors
   if [ ${#a_cpu_governors[@]} -gt 0 ]; then
+    echo "Restoring original CPU governors for all CPUs"
     for cpu_path in "${!a_cpu_governors[@]}"; do
-      echo "Restoring governor for ${cpu_path} to '${a_cpu_governors[$cpu_path]}'"
       echo "${a_cpu_governors[$cpu_path]}" | sudo tee "$cpu_path" >/dev/null
     done
   fi
@@ -82,9 +82,9 @@ fi
 
 # 1. Save and set CPU governors
 declare -A a_cpu_governors
+echo "Setting CPU governors to 'performance' for all CPUs"
 for cpu_path in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
   a_cpu_governors["$cpu_path"]=$(cat "$cpu_path")
-  echo "Setting governor for ${cpu_path} to 'performance'"
   echo "performance" | sudo tee "$cpu_path" >/dev/null
 done
 
