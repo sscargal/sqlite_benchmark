@@ -18,7 +18,7 @@ fi
 # --- Read the results data from the provided file ---
 # Using awk to ensure consistent formatting and remove potential DOS line endings
 RESULTS_DATA=$(awk '1' "$1")
-OUTPUT_FILE="results_chart.html"
+OUTPUT_FILE="$(dirname "$1")/results_chart.html"
 
 # --- Generate the HTML file using a Heredoc ---
 # This embeds the entire React application and the data into a single file.
