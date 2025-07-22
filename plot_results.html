@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLite Benchmark Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for checkbox container */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">SQLite Benchmark Analysis</h1>
+            <p class="text-md text-gray-600 mt-2">Interactively explore SQLite performance across different configurations.</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg">
+            <!-- Data Loading Section -->
+            <div class="flex flex-col sm:flex-row items-end gap-4 mb-4">
+                <div class="flex-grow w-full">
+                    <label for="dataPath" class="block text-sm font-medium text-gray-700 mb-1">Results Directory Path</label>
+                    <input type="text" id="dataPath" placeholder="e.g., results_2025-07-21_02-44-43" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                </div>
+                <div class="w-full sm:w-auto flex-shrink-0">
+                    <button id="loadDataBtn" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition shadow-sm">Load Data</button>
+                </div>
+            </div>
+            <div id="statusMessage" class="text-center mb-4 h-5 text-sm"></div>
+
+            <!-- Filter Controls -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-gray-200">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Storage Type</label>
+                    <div id="storageFilterContainer" class="space-y-2 max-h-36 overflow-y-auto p-3 border border-gray-300 rounded-lg custom-scrollbar">
+                        <!-- Checkboxes will be dynamically inserted here -->
+                    </div>
+                </div>
+                <div>
+                    <label for="sizeFilter" class="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                    <select id="sizeFilter" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="pragmaFilter" class="block text-sm font-medium text-gray-700 mb-1">PRAGMA Setup</label>
+                    <select id="pragmaFilter" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="benchmarkFilter" class="block text-sm font-medium text-gray-700 mb-1">Benchmark</label>
+                    <select id="benchmarkFilter" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Chart Container -->
+            <div class="relative h-[60vh] mt-6">
+                <canvas id="benchmarkChart"></canvas>
+            </div>
+        </div>
+
+        <footer class="text-center mt-8 text-sm text-gray-500">
+            <p>Data visualization by Gemini. Chart rendered using Chart.js.</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- Default Data (as fallback) ---
+        const defaultRawData = `
+Storage              | Size       | PRAGMA Setup         | Benchmark            | Ops/sec        
+----------------------------------------------------------------------------------------------------
+memory               | 100MB      | defaults             | fillrandom           | 516904.44      
+memory               | 100MB      | defaults             | readrandom           | 2779703.32     
+tmpfs                | 100MB      | tuned_no_mmap        | fillrandom           | 244947.86      
+tmpfs                | 100MB      | tuned_no_mmap        | readrandom           | 1455350.54     
+nvme                 | 1GB        | tuned_no_mmap        | fillrandom           | 155467.65      
+nvme                 | 1GB        | tuned_no_mmap        | readrandom           | 1001670.31     
+memory               | 1GB        | defaults             | fillrandom           | 175107.42      
+memory               | 1GB        | defaults             | readrandom           | 1150594.53     
+tmpfs                | 1GB        | tuned_no_mmap        | fillrandom           | 165603.91      
+tmpfs                | 1GB        | tuned_no_mmap        | readrandom           | 1065506.73     
+pmem                 | 100MB      | tuned_no_mmap        | fillrandom           | 161621.18      
+pmem                 | 100MB      | tuned_no_mmap        | readrandom           | 1060224.94     
+nvme                 | 100MB      | tuned_with_mmap      | fillrandom           | 175131.43      
+nvme                 | 100MB      | tuned_with_mmap      | readrandom           | 1144458.41     
+tmpfs                | 1GB        | defaults             | fillrandom           | 173307.70      
+tmpfs                | 1GB        | defaults             | readrandom           | 1089520.72     
+nvme                 | 100MB      | tuned_no_mmap        | fillrandom           | 187313.44      
+nvme                 | 100MB      | tuned_no_mmap        | readrandom           | 1164454.33     
+tmpfs                | 100MB      | defaults             | fillrandom           | 324025.32      
+tmpfs                | 100MB      | defaults             | readrandom           | 1637333.98     
+tmpfs                | 100MB      | tuned_with_mmap      | fillrandom           | 205673.72      
+tmpfs                | 100MB      | tuned_with_mmap      | readrandom           | 1345026.70     
+pmem                 | 100MB      | defaults             | fillrandom           | 172771.25      
+pmem                 | 100MB      | defaults             | readrandom           | 1060126.58     
+nvme                 | 1GB        | tuned_with_mmap      | fillrandom           | 151263.69      
+nvme                 | 1GB        | tuned_with_mmap      | readrandom           | 999086.90      
+nvme                 | 1GB        | defaults             | fillrandom           | 160206.24      
+nvme                 | 1GB        | defaults             | readrandom           | 1016379.95     
+pmem                 | 1GB        | defaults             | fillrandom           | 150453.77      
+pmem                 | 1GB        | defaults             | readrandom           | 965343.57      
+pmem                 | 1GB        | tuned_with_mmap      | fillrandom           | 141817.27      
+pmem                 | 1GB        | tuned_with_mmap      | readrandom           | 954396.16      
+nvme                 | 100MB      | defaults             | fillrandom           | 204292.11      
+nvme                 | 100MB      | defaults             | readrandom           | 1176769.42     
+pmem                 | 1GB        | tuned_no_mmap        | fillrandom           | 145804.83      
+pmem                 | 1GB        | tuned_no_mmap        | readrandom           | 952691.44      
+tmpfs                | 1GB        | tuned_with_mmap      | fillrandom           | 158998.14      
+tmpfs                | 1GB        | tuned_with_mmap      | readrandom           | 1058759.62     
+pmem                 | 100MB      | tuned_with_mmap      | fillrandom           | 153213.47      
+pmem                 | 100MB      | tuned_with_mmap      | readrandom           | 1052433.99     
+`;
+
+        // --- Global Variables ---
+        let chart;
+        let benchmarkData = [];
+
+        // --- DOM Elements ---
+        const dataPathInput = document.getElementById('dataPath');
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const storageFilterContainer = document.getElementById('storageFilterContainer');
+        const sizeFilter = document.getElementById('sizeFilter');
+        const pragmaFilter = document.getElementById('pragmaFilter');
+        const benchmarkFilter = document.getElementById('benchmarkFilter');
+        const ctx = document.getElementById('benchmarkChart').getContext('2d');
+
+        // --- Data Handling ---
+        /**
+         * Parses the benchmark data string into an array of objects.
+         * @param {string} dataString The raw data as a string.
+         */
+        function parseData(dataString) {
+            const lines = dataString.trim().split('\n').slice(2);
+            benchmarkData = lines.map(line => {
+                const parts = line.split('|').map(p => p.trim());
+                if (parts.length < 5) return null;
+                return {
+                    storage: parts[0],
+                    size: parts[1],
+                    pragma: parts[2],
+                    benchmark: parts[3],
+                    opsPerSec: parseFloat(parts[4])
+                };
+            }).filter(d => d && d.storage && !isNaN(d.opsPerSec)); // Filter out null or malformed lines
+        }
+
+        /**
+         * Fetches data from a given path, parses it, and re-renders the chart.
+         */
+        async function fetchAndProcessData() {
+            const path = dataPathInput.value.trim();
+            if (!path) {
+                statusMessage.textContent = 'Please enter a results directory path.';
+                statusMessage.className = 'text-center mb-4 h-5 text-sm text-red-500';
+                return;
+            }
+
+            const url = `${path}/summary_report.txt`;
+            statusMessage.textContent = `Loading from ${url}...`;
+            statusMessage.className = 'text-center mb-4 h-5 text-sm text-gray-600';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`File not found or server error (${response.status})`);
+                }
+                const dataString = await response.text();
+                
+                processNewData(dataString);
+
+                statusMessage.textContent = 'Data loaded successfully!';
+                statusMessage.className = 'text-center mb-4 h-5 text-sm text-green-600';
+
+            } catch (error) {
+                console.error('Failed to load data:', error);
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.className = 'text-center mb-4 h-5 text-sm text-red-500';
+            }
+        }
+
+        /**
+         * Processes a new data string by parsing, re-populating filters, and rendering the chart.
+         * @param {string} dataString The raw data string to process.
+         */
+        function processNewData(dataString) {
+            parseData(dataString);
+            populateFilters();
+            renderChart();
+        }
+
+        // --- UI and Charting ---
+        function createCheckbox(value, label, checked = false) {
+            const div = document.createElement('div');
+            div.className = 'flex items-center';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `storage-${value.replace(/\s+/g, '-')}`;
+            checkbox.value = value;
+            checkbox.checked = checked;
+            checkbox.className = 'h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer';
+            checkbox.addEventListener('change', handleStorageCheckboxChange);
+            const labelEl = document.createElement('label');
+            labelEl.htmlFor = checkbox.id;
+            labelEl.textContent = label;
+            labelEl.className = 'ml-2 block text-sm text-gray-900 cursor-pointer';
+            div.appendChild(checkbox);
+            div.appendChild(labelEl);
+            return div;
+        }
+
+        function handleStorageCheckboxChange(event) {
+            const allCheckbox = storageFilterContainer.querySelector('input[value="all"]');
+            const individualCheckboxes = Array.from(storageFilterContainer.querySelectorAll('input[type="checkbox"]:not([value="all"])'));
+            if (event.target.value === 'all') {
+                individualCheckboxes.forEach(cb => cb.checked = event.target.checked);
+            } else {
+                allCheckbox.checked = individualCheckboxes.every(cb => cb.checked);
+            }
+            renderChart();
+        }
+
+        function populateFilters() {
+            // Clear existing options before repopulating
+            storageFilterContainer.innerHTML = '';
+            sizeFilter.innerHTML = '<option value="all">All</option>';
+            pragmaFilter.innerHTML = '<option value="all">All</option>';
+            benchmarkFilter.innerHTML = '<option value="all">All</option>';
+
+            const storages = [...new Set(benchmarkData.map(d => d.storage))];
+            const sizes = [...new Set(benchmarkData.map(d => d.size))];
+            const pragmas = [...new Set(benchmarkData.map(d => d.pragma))];
+            const benchmarks = [...new Set(benchmarkData.map(d => d.benchmark))];
+            
+            storageFilterContainer.appendChild(createCheckbox('all', 'Select All', true));
+            storages.forEach(val => storageFilterContainer.appendChild(createCheckbox(val, val, true)));
+            
+            sizes.forEach(val => sizeFilter.add(new Option(val, val)));
+            pragmas.forEach(val => pragmaFilter.add(new Option(val, val)));
+            benchmarks.forEach(val => benchmarkFilter.add(new Option(val, val)));
+        }
+
+        function renderChart() {
+            const selectedStoragesCheckboxes = Array.from(storageFilterContainer.querySelectorAll('input[type="checkbox"]:checked'));
+            const selectedStorages = selectedStoragesCheckboxes.map(cb => cb.value);
+            const selectedSize = sizeFilter.value;
+            const selectedPragma = pragmaFilter.value;
+            const selectedBenchmark = benchmarkFilter.value;
+            
+            const isAllStorages = selectedStorages.includes('all');
+
+            const filteredData = benchmarkData.filter(d => 
+                (isAllStorages || selectedStorages.includes(d.storage)) &&
+                (selectedSize === 'all' || d.size === selectedSize) &&
+                (selectedPragma === 'all' || d.pragma === selectedPragma) &&
+                (selectedBenchmark === 'all' || d.benchmark === selectedBenchmark)
+            );
+
+            const labels = filteredData.map(d => `${d.storage} | ${d.size} | ${d.pragma} | ${d.benchmark}`);
+            const dataPoints = filteredData.map(d => d.opsPerSec);
+
+            const backgroundColors = filteredData.map(d => {
+                switch(d.storage) {
+                    case 'memory': return 'rgba(255, 99, 132, 0.6)'; // Red
+                    case 'tmpfs': return 'rgba(54, 162, 235, 0.6)'; // Blue
+                    case 'nvme': return 'rgba(75, 192, 192, 0.6)'; // Green
+                    case 'pmem': return 'rgba(255, 206, 86, 0.6)'; // Yellow
+                    default: return 'rgba(201, 203, 207, 0.6)'; // Grey
+                }
+            });
+            const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
+
+            if (chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Operations per Second',
+                        data: dataPoints,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1,
+                        borderRadius: 5,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Operations per Second (ops/sec)', font: { size: 14, weight: '500' }}, ticks: { callback: value => value.toLocaleString() }},
+                        x: { display: false, title: { display: true, text: 'Test Configuration', font: { size: 14, weight: '500' }}}
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true, backgroundColor: '#333', titleFont: { size: 16 }, bodyFont: { size: 14 },
+                            callbacks: {
+                                title: (tooltipItems) => `Config: ${filteredData[tooltipItems[0].dataIndex].storage} | ${filteredData[tooltipItems[0].dataIndex].size}`,
+                                label: (tooltipItem) => {
+                                    const item = filteredData[tooltipItem.dataIndex];
+                                    const ops = item.opsPerSec.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                    return [`Benchmark: ${item.benchmark}`, `PRAGMA: ${item.pragma}`, `Ops/sec: ${ops}`];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Main function to set up the application.
+         */
+        function main() {
+            processNewData(defaultRawData);
+            loadDataBtn.addEventListener('click', fetchAndProcessData);
+            sizeFilter.addEventListener('change', renderChart);
+            pragmaFilter.addEventListener('change', renderChart);
+            benchmarkFilter.addEventListener('change', renderChart);
+        }
+
+        main();
+    </script>
+
+</body>
+</html>

@@ -46,6 +46,9 @@ BENCHMARKS_TO_RUN="fillrandom,readrandom"
 declare -a SIZES=(
     "100MB,25600,4096"
     "1GB,262144,4096"
+    "2GB,524288,4096"
+    "5GB,1310720,4096"
+    "10GB,2621440,4096"
 )
 declare -a STORAGE_CONFIGS=(
     "memory,:memory:"
@@ -55,8 +58,19 @@ declare -a STORAGE_CONFIGS=(
 )
 declare -a PRAGMA_CONFIGS=(
     "defaults,"
-    "tuned_no_mmap,journal_mode=WAL,synchronous=NORMAL,mmap_size=0"
-    "tuned_with_mmap,journal_mode=WAL,synchronous=NORMAL,mmap_size=__MMAP_SIZE__"
+    "wal_on,journal_mode=WAL,synchronous=NORMAL"
+    "wal_off,journal_mode=DELETE,synchronous=NORMAL"
+    "mmap_only,mmap_size=__MMAP_SIZE__"
+    "wal_mmap,journal_mode=WAL,synchronous=NORMAL,mmap_size=__MMAP_SIZE__"
+    "wal_delete_mmap,journal_mode=DELETE,synchronous=NORMAL,mmap_size=__MMAP_SIZE__"
+    "page_4k,journal_mode=WAL,synchronous=NORMAL,page_size=4096"
+    "page_4k_mmap,journal_mode=WAL,synchronous=NORMAL,page_size=4096,mmap_size=__MMAP_SIZE__"
+    "page_8k,journal_mode=WAL,synchronous=NORMAL,page_size=8192"
+    "page_8k_mmap,journal_mode=WAL,synchronous=NORMAL,page_size=8192,mmap_size=__MMAP_SIZE__"
+    "page_16k,journal_mode=WAL,synchronous=NORMAL,page_size=16384"
+    "page_16k,journal_mode=WAL,synchronous=NORMAL,page_size=16384,mmap_size=__MMAP_SIZE__"
+    "page_32k,journal_mode=WAL,synchronous=NORMAL,page_size=32768"
+    "page_32k_mmap,journal_mode=WAL,synchronous=NORMAL,page_size=32768,mmap_size=__MMAP_SIZE__"
 )
 THP_PATH="/sys/kernel/mm/transparent_hugepage/enabled"
 
@@ -222,7 +236,4 @@ done
 echo
 echo "Comparison report saved to: ${SUMMARY_FILE}"
 echo "Benchmark suite finished."
-
-# Add after the summary is generated
-echo "Generating performance chart..."
-./plot_results.sh "${SUMMARY_FILE}"
+echo "==========================="
