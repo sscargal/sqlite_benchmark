@@ -192,6 +192,124 @@ The C++ tool includes the following benchmarks, which can be specified in the `B
 | readrandom | Random Reads: Performs point queries for random keys. | Indexing performance and random read I/O latency. |
 | readwrite | Mixed Workload: A 50/50 mix of random reads and random writes within a single transaction. | Realistic application throughput under contention. |
 
+# SQLite Benchmark Results Visualization
+
+## Viewing Results with `plot_results.html`
+
+You can interactively explore your SQLite benchmark results using the `plot_results.html` file and a simple Python HTTP server.
+
+### 1. Start a Local HTTP Server
+
+Navigate to the directory containing your `plot_results.html` and your results directories, then run:
+
+```sh
+python3 -m http.server 8000 --bind 0.0.0.0
+```
+
+- This will serve files over HTTP on port 8000, accessible from your local machine or other devices on your network.
+
+### 2. Open the Visualization Page
+
+In your web browser, go to:
+
+```
+http://localhost:8000/plot_results.html
+```
+
+Or, if accessing from another device, use your server's IP address:
+
+```
+http://<server-ip>:8000/plot_results.html
+```
+
+### 3. Load Your Results
+
+- In the "Results Directory Path" field at the top of the page, **enter the path to your results directory** (for example: `results_2025-07-21_16-39-50`).
+- **Do not include the `summary_report.txt` filename**. The application will automatically look for `summary_report.txt` inside the directory you specify.
+- Click the **"Load Data"** button to load and visualize your results.
+
+### Example
+
+If your results are in:
+
+```
+results_2025-07-21_16-39-50/summary_report.txt
+```
+
+Enter only:
+
+```
+results_2025-07-21_16-39-50
+```
+
+in the "Results Directory Path" field.
+
+---
+
+**Note:**  
+- The HTTP server must be running in the directory that contains both `plot_results.html` and your results directories.
+- If you move your results to a different location, make sure the path you enter matches the directory structure served by the Python server.
+
+---
+```# SQLite Benchmark Results Visualization
+
+## Viewing Results with `plot_results.html`
+
+You can interactively explore your SQLite benchmark results using the `plot_results.html` file and a simple Python HTTP server.
+
+### 1. Start a Local HTTP Server
+
+Navigate to the directory containing your `plot_results.html` and your results directories, then run:
+
+```sh
+python3 -m http.server 8000 --bind 0.0.0.0
+```
+
+- This will serve files over HTTP on port 8000, accessible from your local machine or other devices on your network.
+
+### 2. Open the Visualization Page
+
+In your web browser, go to:
+
+```
+http://localhost:8000/plot_results.html
+```
+
+Or, if accessing from another device, use your server's IP address:
+
+```
+http://<server-ip>:8000/plot_results.html
+```
+
+### 3. Load Your Results
+
+- In the "Results Directory Path" field at the top of the page, **enter the path to your results directory** (for example: `results_2025-07-21_16-39-50`).
+- **Do not include the `summary_report.txt` filename**. The application will automatically look for `summary_report.txt` inside the directory you specify.
+- Click the **"Load Data"** button to load and visualize your results.
+
+### Example
+
+If your results are in:
+
+```
+results_2025-07-21_16-39-50/summary_report.txt
+```
+
+Enter only:
+
+```
+results_2025-07-21_16-39-50
+```
+
+in the "Results Directory Path" field.
+
+---
+
+**Note:**  
+- The HTTP server must be running in the directory that contains both `plot_results.html` and your results directories.
+- If you move your results to a different location, make sure the path you enter matches the directory structure served by the Python server.
+
+
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
