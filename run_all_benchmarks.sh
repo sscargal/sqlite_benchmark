@@ -130,6 +130,14 @@ echo "Results will be stored in: ${RESULTS_DIR}"
 echo
 
 # --- Main Execution Loop ---
+
+# Calculate total number of jobs for progress indication
+NUM_SIZES=${#SIZES[@]}
+NUM_STORAGE=${#STORAGE_CONFIGS[@]}
+NUM_PRAGMAS=${#PRAGMA_CONFIGS[@]}
+TOTAL_JOBS=$((NUM_SIZES * NUM_STORAGE * NUM_PRAGMAS))
+CURRENT_JOB=0
+
 for size_config in "${SIZES[@]}"; do
     IFS=',' read -r size_name num_entries value_size <<< "$size_config"
     db_size_bytes=$((num_entries * value_size))
@@ -137,7 +145,6 @@ for size_config in "${SIZES[@]}"; do
 
     for storage_config in "${STORAGE_CONFIGS[@]}"; do
         IFS=',' read -r storage_name db_path <<< "$storage_config"
-        # ... (rest of the script is identical to the previous version)
         if [[ "$db_path" != ":memory:" ]] && [ ! -d "$(dirname "$db_path")" ]; then continue; fi
 
         for pragma_config in "${PRAGMA_CONFIGS[@]}"; do
@@ -146,6 +153,9 @@ for size_config in "${SIZES[@]}"; do
                 echo "--> SKIPPING mmap test for in-memory database."
                 continue
             fi
+
+            CURRENT_JOB=$((CURRENT_JOB + 1))
+            echo "[${CURRENT_JOB}/${TOTAL_JOBS}] Progress: Running Size=${size_name}, Storage=${storage_name}, PRAGMA=${pragma_name}"
 
             final_pragma_string="${pragma_template/__MMAP_SIZE__/$mmap_size}"
             LOG_FILE="${RESULTS_DIR}/${storage_name}_${size_name}_${pragma_name}.log"
@@ -158,11 +168,10 @@ for size_config in "${SIZES[@]}"; do
 
             for i in $(seq 1 $NUM_RUNS); do
                 echo "    Run $i/$NUM_RUNS..."
-                
                 # Drop caches before each run for consistency
                 echo "    -> Dropping caches..."
                 echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null
-                
+
                 command_args=(
                     "--db_path" "$db_path"
                     "--num" "$num_entries"
@@ -200,7 +209,7 @@ for size_config in "${SIZES[@]}"; do
                   fi
               done
             } > "$LOG_FILE"
-            
+
             echo "COMPLETED: ${storage_name}_${size_name}_${pragma_name}"
             echo "----------------------------------------------------------------"
             echo
